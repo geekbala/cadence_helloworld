@@ -1,0 +1,41 @@
+package main
+
+import (
+	"errors"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/cadence/testsuite"
+	"testing"
+	//"github.com/stretchr/testify/mock"
+)
+
+type UnitTestSuite struct {
+	suite.Suite
+	testsuite.WorkflowTestSuite
+	env *testsuite.TestWorkflowEnvironment
+}
+
+func (s *UnitTestSuite) SetupTest() {
+	s.env = s.NewTestWorkflowEnvironment()
+}
+
+func (s *UnitTestSuite) AfterTest(suiteName, testName string) {
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *UnitTestSuite) Test_DemoWorkFlow_Success() {
+	s.env.ExecuteWorkflow(DemoWorkFlow, "test_success")
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_DemoWorkflow_Failure() {
+	s.env.OnActivity(getNameActivity).Return("", errors.New("oops")).Once()
+	s.env.OnActivity(getNameActivity).Return("mock", nil).Once()
+	s.env.ExecuteWorkflow(DemoWorkFlow, "test_failure")
+	s.True(s.env.IsWorkflowCompleted())
+	s.NoError(s.env.GetWorkflowError())
+}
+
+func TestUnitTestSuite(t *testing.T) {
+	suite.Run(t, new(UnitTestSuite))
+}
